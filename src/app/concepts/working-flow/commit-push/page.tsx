@@ -323,7 +323,7 @@ export default function CommitPushPage() {
           </p>
 
           <div className='space-y-3'>
-            {localCommits.map((commit, index) => (
+            {localCommits.map((commit) => (
               <div
                 key={commit.id}
                 className={`p-3 rounded-lg border ${

@@ -395,7 +395,7 @@ export default function StashPage() {
             <div className='space-y-4'>
               <div className='p-4 bg-gray-50 dark:bg-gray-900 rounded-lg'>
                 <div className='font-mono text-sm text-purple-600 dark:text-purple-400 mb-2'>
-                  git stash save "메시지"
+                  git stash save &quot;메시지&quot;
                 </div>
                 <p className='text-sm text-gray-600 dark:text-gray-400'>
                   의미있는 메시지와 함께 스태시 저장

@@ -352,7 +352,7 @@ export default function GitInternalsPage() {
               </p>
               <div className='bg-gray-100 dark:bg-gray-900 p-3 rounded font-mono text-xs'>
                 <div className='text-blue-600 dark:text-blue-400'>
-                  echo "hello world" | git hash-object --stdin
+                  echo &quot;hello world&quot; | git hash-object --stdin
                 </div>
                 <div className='text-gray-500'>
                   3b18e512dba79e4c8300dd08aeb37f8e728b8dad
