@@ -2,20 +2,17 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { FileCard } from '@/components/git/file-card'
+import { GitArea } from '@/components/git/git-area'
+import { ProgressBar } from '@/components/git/progress-bar'
+import { FileViewer } from '@/components/git/file-viewer'
 
-type FileStatus = 'untracked' | 'modified' | 'staged' | 'committed' | 'stashed'
+type FileStatus = 'untracked' | 'modified' | 'staged' | 'committed'
 
 interface FileItem {
   name: string
   status: FileStatus
   content: string
-}
-
-interface StashItem {
-  id: string
-  message: string
-  files: FileItem[]
-  timestamp: string
 }
 
 export default function WorkingFlowPage() {
@@ -25,11 +22,8 @@ export default function WorkingFlowPage() {
     { name: 'style.css', status: 'untracked', content: 'body { margin: 0; }' },
   ])
 
-  const [stashList, setStashList] = useState<StashItem[]>([])
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [currentStep, setCurrentStep] = useState(0)
-  const [showInternals, setShowInternals] = useState(false)
-  const [showStash, setShowStash] = useState(false)
 
   const steps = [
     '파일들의 현재 상태를 확인해보세요',
@@ -37,51 +31,6 @@ export default function WorkingFlowPage() {
     'git commit 명령으로 Repository에 저장',
     '완료! 모든 변경사항이 안전하게 저장되었습니다',
   ]
-
-  const getStatusColor = (status: FileStatus) => {
-    switch (status) {
-      case 'untracked':
-        return 'text-red-600 dark:text-red-400'
-      case 'modified':
-        return 'text-orange-600 dark:text-orange-400'
-      case 'staged':
-        return 'text-green-600 dark:text-green-400'
-      case 'committed':
-        return 'text-blue-600 dark:text-blue-400'
-      case 'stashed':
-        return 'text-purple-600 dark:text-purple-400'
-    }
-  }
-
-  const getStatusBg = (status: FileStatus) => {
-    switch (status) {
-      case 'untracked':
-        return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
-      case 'modified':
-        return 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
-      case 'staged':
-        return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
-      case 'committed':
-        return 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
-      case 'stashed':
-        return 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800'
-    }
-  }
-
-  const getStatusText = (status: FileStatus) => {
-    switch (status) {
-      case 'untracked':
-        return 'Untracked'
-      case 'modified':
-        return 'Modified'
-      case 'staged':
-        return 'Staged'
-      case 'committed':
-        return 'Committed'
-      case 'stashed':
-        return 'Stashed'
-    }
-  }
 
   const handleAddFile = (fileName: string) => {
     setFiles((prev) =>
@@ -104,45 +53,6 @@ export default function WorkingFlowPage() {
     setCurrentStep(Math.max(currentStep, 2))
   }
 
-  const handleStash = () => {
-    const modifiedFiles = files.filter(
-      (f) => f.status === 'modified' || f.status === 'staged'
-    )
-    if (modifiedFiles.length === 0) return
-
-    const newStash: StashItem = {
-      id: `stash@{${stashList.length}}`,
-      message: `WIP on main: 임시 저장된 변경사항 ${modifiedFiles.length}개`,
-      files: [...modifiedFiles],
-      timestamp: new Date().toLocaleTimeString('ko-KR'),
-    }
-
-    setStashList((prev) => [newStash, ...prev])
-    setFiles((prev) =>
-      prev.map((file) =>
-        file.status === 'modified' || file.status === 'staged'
-          ? { ...file, status: 'committed' }
-          : file
-      )
-    )
-  }
-
-  const handleStashPop = (stashId: string) => {
-    const stash = stashList.find((s) => s.id === stashId)
-    if (!stash) return
-
-    setFiles((prev) =>
-      prev.map((file) => {
-        const stashedFile = stash.files.find((sf) => sf.name === file.name)
-        return stashedFile
-          ? { ...file, status: 'modified', content: stashedFile.content }
-          : file
-      })
-    )
-
-    setStashList((prev) => prev.filter((s) => s.id !== stashId))
-  }
-
   const resetDemo = () => {
     setFiles([
       { name: 'README.md', status: 'committed', content: '# My Project' },
@@ -153,7 +63,6 @@ export default function WorkingFlowPage() {
         content: 'body { margin: 0; }',
       },
     ])
-    setStashList([])
     setCurrentStep(0)
     setSelectedFile(null)
   }
@@ -190,7 +99,7 @@ export default function WorkingFlowPage() {
       </div>
 
       {/* Header */}
-      <div className='mb-12'>
+      <div className='mb-8'>
         <div className='flex items-center space-x-3 mb-4'>
           <div className='w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center text-xl'>
             📁
@@ -199,437 +108,121 @@ export default function WorkingFlowPage() {
             Working Directory ↔ Staging ↔ Repository
           </h1>
         </div>
-        <p className='text-lg text-gray-600 dark:text-gray-400'>
+        <p className='text-lg text-gray-600 dark:text-gray-400 mb-6'>
           Git의 3가지 핵심 영역과 파일들의 상태 변화를 체험해보세요
         </p>
-      </div>
 
-      {/* Toggle Buttons */}
-      <div className='mb-8 flex flex-wrap gap-3'>
-        <button
-          onClick={() => setShowInternals(!showInternals)}
-          className={`px-4 py-2 rounded-lg border transition-colors ${
-            showInternals
-              ? 'bg-blue-500 text-white border-blue-500'
-              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-          }`}
-        >
-          🔧 Git 내부 구조
-        </button>
-        <button
-          onClick={() => setShowStash(!showStash)}
-          className={`px-4 py-2 rounded-lg border transition-colors ${
-            showStash
-              ? 'bg-purple-500 text-white border-purple-500'
-              : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-          }`}
-        >
-          📦 Stash 영역
-        </button>
-      </div>
-
-      {/* Git Internals Visualization */}
-      {showInternals && (
-        <div className='mb-8 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800 p-6'>
-          <h2 className='text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center'>
-            <span className='mr-2'>🔧</span>
-            Git 내부 구조: 데이터는 어디에 저장될까?
-          </h2>
-
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-            <div>
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
-                파일 시스템 구조
-              </h3>
-              <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm'>
-                <div className='space-y-1'>
-                  <div className='text-blue-600 dark:text-blue-400'>
-                    📁 my-project/
-                  </div>
-                  <div className='ml-4 text-gray-600 dark:text-gray-400'>
-                    📄 README.md
-                  </div>
-                  <div className='ml-4 text-gray-600 dark:text-gray-400'>
-                    📄 index.js
-                  </div>
-                  <div className='ml-4 text-gray-600 dark:text-gray-400'>
-                    📄 style.css
-                  </div>
-                  <div className='ml-4 text-purple-600 dark:text-purple-400'>
-                    📁 .git/
-                  </div>
-                  <div className='ml-8 text-gray-500 dark:text-gray-500'>
-                    📄 index <span className='text-xs'>(Staging Area)</span>
-                  </div>
-                  <div className='ml-8 text-gray-500 dark:text-gray-500'>
-                    📄 HEAD
-                  </div>
-                  <div className='ml-8 text-gray-500 dark:text-gray-500'>
-                    📁 objects/ <span className='text-xs'>(Repository)</span>
-                  </div>
-                  <div className='ml-8 text-gray-500 dark:text-gray-500'>
-                    📁 refs/
-                  </div>
-                  <div className='ml-8 text-gray-500 dark:text-gray-500'>
-                    📄 config
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
-                영역별 저장 위치
-              </h3>
-              <div className='space-y-4'>
-                <div className='p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'>
-                  <div className='flex items-center mb-2'>
-                    <div className='w-3 h-3 bg-red-500 rounded-full mr-2'></div>
-                    <span className='font-medium'>Working Directory</span>
-                  </div>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>
-                    실제 파일 시스템의 프로젝트 폴더에 저장
-                  </p>
-                </div>
-
-                <div className='p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'>
-                  <div className='flex items-center mb-2'>
-                    <div className='w-3 h-3 bg-green-500 rounded-full mr-2'></div>
-                    <span className='font-medium'>Staging Area</span>
-                  </div>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>
-                    <code className='bg-gray-100 dark:bg-gray-700 px-1 rounded'>
-                      .git/index
-                    </code>{' '}
-                    파일에 바이너리 형태로 저장
-                  </p>
-                </div>
-
-                <div className='p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'>
-                  <div className='flex items-center mb-2'>
-                    <div className='w-3 h-3 bg-blue-500 rounded-full mr-2'></div>
-                    <span className='font-medium'>Repository</span>
-                  </div>
-                  <p className='text-sm text-gray-600 dark:text-gray-400'>
-                    <code className='bg-gray-100 dark:bg-gray-700 px-1 rounded'>
-                      .git/objects/
-                    </code>{' '}
-                    폴더에 압축된 객체로 저장
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className='mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800'>
-            <h4 className='font-semibold text-yellow-800 dark:text-yellow-200 mb-2'>
-              💡 알아두면 좋은 점
-            </h4>
-            <ul className='text-sm text-yellow-700 dark:text-yellow-300 space-y-1'>
-              <li>
-                • Staging Area는 다음 커밋에 포함될 스냅샷을 미리 준비하는
-                곳입니다
-              </li>
-              <li>• Git objects는 SHA-1 해시로 식별되며 중복 제거됩니다</li>
-              <li>• HEAD 파일은 현재 브랜치의 최신 커밋을 가리킵니다</li>
-            </ul>
-          </div>
+        {/* Sub-navigation */}
+        <div className='flex flex-wrap gap-3'>
+          <Link
+            href='/concepts/working-flow/internals'
+            className='inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/40 transition-colors'
+          >
+            🔧 Git 내부 구조
+          </Link>
+          <Link
+            href='/concepts/working-flow/stash'
+            className='inline-flex items-center px-4 py-2 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/40 transition-colors'
+          >
+            📦 Stash 기능
+          </Link>
+          <Link
+            href='/concepts/working-flow/commit-push'
+            className='inline-flex items-center px-4 py-2 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/40 transition-colors'
+          >
+            🚀 Commit vs Push
+          </Link>
         </div>
-      )}
+      </div>
 
       {/* Progress */}
-      <div className='mb-8 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800'>
-        <div className='flex items-center justify-between mb-3'>
-          <span className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-            진행 상황
-          </span>
-          <span className='text-sm text-gray-500 dark:text-gray-400'>
-            {currentStep + 1}/4
-          </span>
-        </div>
-        <div className='w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-3'>
-          <div
-            className='bg-blue-500 h-2 rounded-full transition-all duration-500'
-            style={{ width: `${((currentStep + 1) / 4) * 100}%` }}
-          ></div>
-        </div>
-        <p className='text-sm text-gray-600 dark:text-gray-400'>
-          {steps[currentStep]}
-        </p>
-      </div>
+      <ProgressBar
+        currentStep={currentStep}
+        totalSteps={steps.length}
+        steps={steps}
+      />
 
       {/* Main Content */}
-      <div
-        className={`grid grid-cols-1 gap-6 mb-8 ${
-          showStash ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
-        }`}
-      >
+      <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8'>
         {/* Working Directory */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800 p-6'>
-          <div className='flex items-center justify-between mb-4'>
-            <div className='flex items-center'>
-              <div className='w-3 h-3 bg-red-500 rounded-full mr-3'></div>
-              <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
-                Working Directory
-              </h2>
+        <GitArea
+          title='Working Directory'
+          description='현재 작업 중인 파일들'
+          color='red'
+        >
+          {workingFiles.map((file) => (
+            <FileCard
+              key={file.name}
+              name={file.name}
+              status={file.status}
+              onSelect={() => setSelectedFile(file.name)}
+              onAction={() => handleAddFile(file.name)}
+              actionLabel='git add'
+              actionVariant='blue'
+            />
+          ))}
+          {workingFiles.length === 0 && (
+            <div className='text-center py-8 text-gray-500 dark:text-gray-400'>
+              <div className='text-2xl mb-2'>✅</div>
+              <p className='text-sm'>변경된 파일이 없습니다</p>
             </div>
-            {workingFiles.length > 0 && (
-              <button
-                onClick={handleStash}
-                className='text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-200 dark:hover:bg-purple-900/40 transition-colors'
-              >
-                stash
-              </button>
-            )}
-          </div>
-          <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
-            현재 작업 중인 파일들
-          </p>
-          <div className='space-y-3'>
-            {workingFiles.map((file) => (
-              <div
-                key={file.name}
-                className={`p-3 rounded-lg border ${getStatusBg(
-                  file.status
-                )} cursor-pointer hover:shadow-sm transition-all`}
-                onClick={() => setSelectedFile(file.name)}
-              >
-                <div className='flex items-center justify-between mb-2'>
-                  <span className='font-medium text-gray-900 dark:text-white'>
-                    {file.name}
-                  </span>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-md font-medium ${getStatusColor(
-                      file.status
-                    )} bg-white dark:bg-gray-700`}
-                  >
-                    {getStatusText(file.status)}
-                  </span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleAddFile(file.name)
-                  }}
-                  className='w-full bg-blue-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600 transition-colors'
-                >
-                  git add
-                </button>
-              </div>
-            ))}
-            {workingFiles.length === 0 && (
-              <div className='text-center py-8 text-gray-500 dark:text-gray-400'>
-                <div className='text-2xl mb-2'>✅</div>
-                <p className='text-sm'>변경된 파일이 없습니다</p>
-              </div>
-            )}
-          </div>
-        </div>
+          )}
+        </GitArea>
 
         {/* Staging Area */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800 p-6'>
-          <div className='flex items-center mb-4'>
-            <div className='w-3 h-3 bg-green-500 rounded-full mr-3'></div>
-            <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
-              Staging Area
-            </h2>
-          </div>
-          <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
-            커밋할 준비가 된 파일들
-          </p>
-          <div className='space-y-3'>
-            {stagingFiles.map((file) => (
-              <div
-                key={file.name}
-                className={`p-3 rounded-lg border ${getStatusBg(
-                  file.status
-                )} cursor-pointer hover:shadow-sm transition-all`}
-                onClick={() => setSelectedFile(file.name)}
-              >
-                <div className='flex items-center justify-between'>
-                  <span className='font-medium text-gray-900 dark:text-white'>
-                    {file.name}
-                  </span>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-md font-medium ${getStatusColor(
-                      file.status
-                    )} bg-white dark:bg-gray-700`}
-                  >
-                    {getStatusText(file.status)}
-                  </span>
-                </div>
-              </div>
-            ))}
-            {stagingFiles.length === 0 && (
-              <div className='text-center py-8 text-gray-500 dark:text-gray-400'>
-                <div className='text-2xl mb-2'>📋</div>
-                <p className='text-sm'>스테이징된 파일이 없습니다</p>
-              </div>
-            )}
-          </div>
-          {stagingFiles.length > 0 && (
-            <button
-              onClick={handleCommit}
-              className='mt-4 w-full bg-green-500 text-white px-4 py-2 rounded-md font-medium hover:bg-green-600 transition-colors'
-            >
-              git commit
-            </button>
+        <GitArea
+          title='Staging Area'
+          description='커밋할 준비가 된 파일들'
+          color='green'
+          action={
+            stagingFiles.length > 0
+              ? {
+                  label: 'git commit',
+                  onClick: handleCommit,
+                }
+              : undefined
+          }
+        >
+          {stagingFiles.map((file) => (
+            <FileCard
+              key={file.name}
+              name={file.name}
+              status={file.status}
+              onSelect={() => setSelectedFile(file.name)}
+            />
+          ))}
+          {stagingFiles.length === 0 && (
+            <div className='text-center py-8 text-gray-500 dark:text-gray-400'>
+              <div className='text-2xl mb-2'>📋</div>
+              <p className='text-sm'>스테이징된 파일이 없습니다</p>
+            </div>
           )}
-        </div>
+        </GitArea>
 
         {/* Repository */}
-        <div className='bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800 p-6'>
-          <div className='flex items-center mb-4'>
-            <div className='w-3 h-3 bg-blue-500 rounded-full mr-3'></div>
-            <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
-              Repository
-            </h2>
-          </div>
-          <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
-            커밋된 파일들
-          </p>
-          <div className='space-y-3'>
-            {committedFiles.map((file) => (
-              <div
-                key={file.name}
-                className={`p-3 rounded-lg border ${getStatusBg(
-                  file.status
-                )} cursor-pointer hover:shadow-sm transition-all`}
-                onClick={() => setSelectedFile(file.name)}
-              >
-                <div className='flex items-center justify-between'>
-                  <span className='font-medium text-gray-900 dark:text-white'>
-                    {file.name}
-                  </span>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-md font-medium ${getStatusColor(
-                      file.status
-                    )} bg-white dark:bg-gray-700`}
-                  >
-                    {getStatusText(file.status)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Stash Area */}
-        {showStash && (
-          <div className='bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800 p-6'>
-            <div className='flex items-center mb-4'>
-              <div className='w-3 h-3 bg-purple-500 rounded-full mr-3'></div>
-              <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>
-                Stash
-              </h2>
-            </div>
-            <p className='text-sm text-gray-600 dark:text-gray-400 mb-4'>
-              임시 저장된 변경사항들
-            </p>
-            <div className='space-y-3'>
-              {stashList.map((stash) => (
-                <div
-                  key={stash.id}
-                  className='p-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20'
-                >
-                  <div className='flex items-center justify-between mb-2'>
-                    <span className='text-xs font-mono text-purple-700 dark:text-purple-300'>
-                      {stash.id}
-                    </span>
-                    <span className='text-xs text-gray-500'>
-                      {stash.timestamp}
-                    </span>
-                  </div>
-                  <p className='text-sm text-gray-700 dark:text-gray-300 mb-2'>
-                    {stash.message}
-                  </p>
-                  <button
-                    onClick={() => handleStashPop(stash.id)}
-                    className='w-full bg-purple-500 text-white px-3 py-1 rounded-md text-sm font-medium hover:bg-purple-600 transition-colors'
-                  >
-                    git stash pop
-                  </button>
-                </div>
-              ))}
-              {stashList.length === 0 && (
-                <div className='text-center py-8 text-gray-500 dark:text-gray-400'>
-                  <div className='text-2xl mb-2'>📦</div>
-                  <p className='text-sm'>스태시된 변경사항이 없습니다</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <GitArea
+          title='Repository'
+          description='커밋된 파일들'
+          color='blue'
+        >
+          {committedFiles.map((file) => (
+            <FileCard
+              key={file.name}
+              name={file.name}
+              status={file.status}
+              onSelect={() => setSelectedFile(file.name)}
+            />
+          ))}
+        </GitArea>
       </div>
-
-      {/* Stash Explanation */}
-      {showStash && (
-        <div className='mb-8 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800 p-6'>
-          <h2 className='text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center'>
-            <span className='mr-2'>📦</span>
-            Stash: 임시 변경사항 저장소
-          </h2>
-
-          <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-            <div>
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
-                언제 사용하나요?
-              </h3>
-              <ul className='text-sm text-gray-600 dark:text-gray-400 space-y-2'>
-                <li>
-                  • 작업 중인 코드를 임시로 저장하고 다른 브랜치로 전환할 때
-                </li>
-                <li>• 긴급한 버그 수정을 위해 현재 작업을 잠시 중단할 때</li>
-                <li>• 실험적인 코드를 커밋하지 않고 보관할 때</li>
-                <li>• Working Directory를 깨끗하게 만들어야 할 때</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-3'>
-                주요 명령어
-              </h3>
-              <div className='space-y-2 text-sm'>
-                <div className='p-2 bg-gray-50 dark:bg-gray-900 rounded font-mono'>
-                  <span className='text-purple-600 dark:text-purple-400'>
-                    git stash
-                  </span>
-                  <span className='text-gray-500 ml-2'>
-                    # 현재 변경사항을 스태시에 저장
-                  </span>
-                </div>
-                <div className='p-2 bg-gray-50 dark:bg-gray-900 rounded font-mono'>
-                  <span className='text-purple-600 dark:text-purple-400'>
-                    git stash pop
-                  </span>
-                  <span className='text-gray-500 ml-2'>
-                    # 최근 스태시를 복원하고 삭제
-                  </span>
-                </div>
-                <div className='p-2 bg-gray-50 dark:bg-gray-900 rounded font-mono'>
-                  <span className='text-purple-600 dark:text-purple-400'>
-                    git stash list
-                  </span>
-                  <span className='text-gray-500 ml-2'># 스태시 목록 확인</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* File Content Viewer */}
       {selectedFile && (
-        <div className='bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-800 p-6 mb-8'>
-          <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
-            📄 파일 내용: {selectedFile}
-          </h3>
-          <div className='bg-gray-50 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm border'>
-            <code className='text-gray-800 dark:text-gray-200'>
-              {files.find((f) => f.name === selectedFile)?.content}
-            </code>
-          </div>
-        </div>
+        <FileViewer
+          fileName={selectedFile}
+          content={files.find((f) => f.name === selectedFile)?.content || ''}
+          onClose={() => setSelectedFile(null)}
+        />
       )}
 
       {/* Controls */}
